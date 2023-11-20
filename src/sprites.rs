@@ -23,15 +23,17 @@ pub enum SpriteOption {
     VertexBuffer,
 }
 
+pub const ball_size: f32 =CELL_WIDTH - 20.0 as f32;
+
 pub fn create_sprites() -> Vec<GPUSprite> {
     let mut sprites: Vec<GPUSprite> = vec![
         GPUSprite { //0 somethin weird is happenign where 1-4 are not showing up
-            screen_region: [WINDOW_WIDTH/2.0, -16.0, CELL_WIDTH*2.0, CELL_HEIGHT],
-            sheet_region: [0.5, 1.0 / 3.0, 0.5, 0.5 / 3.0], // purple PLATFORM SPRITE
+            screen_region: [WINDOW_WIDTH/2.0, -16.0, ball_size, ball_size],
+            sheet_region: [0.5, 2.0 / 3.0, 0.5, 0.5], // orange ball
         },
         GPUSprite { //1
-            screen_region: [128.0, 500.0, 64.0, 96.0],
-            sheet_region: [0.5, 0.5, 0.5, 0.5], // ball - for physics
+            screen_region: [128.0, 500.0, ball_size, ball_size],
+            sheet_region: [0.5, 1.0/3.0, 0.5, 0.35], // yellow ball
         },
     ];
 
@@ -42,15 +44,15 @@ pub fn create_sprites() -> Vec<GPUSprite> {
     
             // Use modulo to cycle through all four colors
             let color_region = match (row % 2, col % 2) {
-                (0, 0) => [0.0, 1.0 / 3.0, 0.5, 0.5 / 3.0], // Blue brick
-                (0, 1) => [0.0, 0.0, 0.5, 0.5 / 3.0], // Pink brick
-                (1, 0) => [0.5, 0.0, 0.5, 0.5/3.0], // Green brick
-                (1, 1) => [0.0, 2.0 / 3.0, 0.5, 0.5 / 3.0], // Yellow brick
+                (0, 0) => [0.0, 0.0, 0.5, 0.335], // pink ball
+                (0, 1) => [0.0,  1.0/3.0, 0.5, 0.335], // green ball
+                (1, 0) => [0.5, 1.0/3.0, 0.5, 0.335], // Green brick
+                (1, 1) => [0.0, 2.0 / 3.0, 0.5, 0.335], // Yellow brick
                 _ => unreachable!(),
             };
     
             sprites.push(GPUSprite {
-                screen_region: [x_position, y_position, CELL_WIDTH, CELL_HEIGHT],
+                screen_region: [x_position, y_position, ball_size, ball_size],
                 sheet_region: color_region,
             });
         }

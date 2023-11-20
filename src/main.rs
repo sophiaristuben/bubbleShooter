@@ -438,7 +438,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                     if ball_position[1] < 0.0 {
                         println!("Touched ground");
                         // commenting out for testing purposes
-                        game_over = true;
+                        // game_over = true;
                     }
 
                     // update ball's screen region in sprites vector
