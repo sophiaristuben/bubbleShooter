@@ -445,7 +445,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                     let platform_left = platform_position[0];
                     let platform_right = platform_left + CELL_WIDTH;
                     if ball_position[1] > platform_top && ball_position[1] < platform_bottom && ball_position[0] > platform_left && ball_position[0] < platform_right{
-                        println!("{} and {}", platform_left, platform_right);
+                        //println!("{} and {}", platform_left, platform_right);
                         ball_velocity[1] = -ball_velocity[1];
                     }
                     
