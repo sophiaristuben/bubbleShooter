@@ -34,6 +34,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     // let mut input = input::Input::default();
     // let mut renderer = sprites::SpriteRenderer::new(&gpu);
     let mut game_over = false; 
+    let mut popped = 0.0;
     //let mut you_won = false;
     
     let mut gpu = gpu::WGPU::new(&window).await; //added to
@@ -307,7 +308,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     });
 
     let mut sprites = sprites::create_sprites();
-    let mut platform_position: [f32; 2] = [WINDOW_WIDTH/2.0, 0.0];  
+    let mut platform_position: [f32; 2] = [WINDOW_WIDTH/2.0, 100.0];  
 
     // for the ball motion
     let mut ball_position: [f32; 2] = [WINDOW_WIDTH / 2.0, WINDOW_HEIGHT / 2.0];
@@ -402,6 +403,26 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                     // BALL MOTION
                     ball_position[0] += ball_velocity[0];
                     ball_position[1] += ball_velocity[1];
+
+                    // colliding off bricks
+                    for i in (2..sprites.len()).rev() {
+                        let brick_top = sprites[i].screen_region[1];
+                        let brick_bottom = brick_top - CELL_HEIGHT;
+                        let brick_left = sprites[i].screen_region[0];
+                        let brick_right = brick_left + CELL_WIDTH;
+                        if ball_position[1] >= brick_bottom && ball_position[0] > brick_left && ball_position[0] < brick_right{  
+                            //println!("collided {} index with {} bottom {} left", i, brick_bottom, brick_left);
+                            ball_velocity[1] = -ball_velocity[1];
+                            popped += 30.0;
+                            
+                            // stack the bubble
+                            sprites[i].screen_region[0] = WINDOW_WIDTH/2.0;
+                            let j:f32 = i as f32;
+                            sprites[i].screen_region[1] = 100.0 + popped;
+                            //sprites[i].screen_region[1] = 200.0;
+                        }
+                    }
+
                     // colliding off walss
                     if ball_position[0] < 0.0 || ball_position[0] > WINDOW_WIDTH {
                         ball_velocity[0] = -ball_velocity[0];
@@ -409,6 +430,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                     if ball_position[1] > WINDOW_HEIGHT {
                         ball_velocity[1] = -ball_velocity[1];
                     }
+                    
                     
                     // for bouncing off the bottom, comment out later
                     /*
@@ -436,9 +458,9 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                     
                     // game over
                     if ball_position[1] < 0.0 {
-                        println!("Touched ground");
+                        //println!("Touched ground");
                         // commenting out for testing purposes
-                        // game_over = true;
+                        //game_over = true;
                     }
 
                     // update ball's screen region in sprites vector

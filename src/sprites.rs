@@ -29,7 +29,7 @@ pub fn create_sprites() -> Vec<GPUSprite> {
     let mut sprites: Vec<GPUSprite> = vec![
         GPUSprite { //0 somethin weird is happenign where 1-4 are not showing up
             screen_region: [WINDOW_WIDTH/2.0, -16.0, ball_size, ball_size],
-            sheet_region: [0.5, 2.0 / 3.0, 0.5, 0.5], // orange ball
+            sheet_region: [0.5, 2.0 / 3.0, 0.5, 0.5], // orange ball (platformer)
         },
         GPUSprite { //1
             screen_region: [128.0, 500.0, ball_size, ball_size],
@@ -94,9 +94,14 @@ pub fn create_sprites() -> Vec<GPUSprite> {
 pub fn move_platform(input: &Input, mut platform_position: [f32; 2]) -> [f32; 2] {
     if input.is_key_down(winit::event::VirtualKeyCode::Left) {
         platform_position[0] -= 5.0;
+        // change platform angle
     }
     if input.is_key_down(winit::event::VirtualKeyCode::Right) {
         platform_position[0] += 5.0;
+        // change platform angle
+    }  
+    if input.is_key_pressed(winit::event::VirtualKeyCode::Space) {
+        // shoot ball
     }  
 
     // prevent from going off screen
