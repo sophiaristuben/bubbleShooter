@@ -1,7 +1,7 @@
 use bytemuck::{Pod, Zeroable};
 use std::{borrow::Cow, mem, path::Path};
 use winit::{
-    event::{Event, WindowEvent},
+    event::{Event, WindowEvent, KeyboardInput},
     event_loop::{ControlFlow, EventLoop},
     window::Window,
 };
@@ -9,6 +9,8 @@ mod input;
 mod gpu;
 mod sprites;
 use sprites::{GPUCamera, SpriteOption, GPUSprite};
+use rand::Rng;
+use std::collections::HashSet;
 
 #[cfg(all(not(feature = "uniforms"), not(feature = "vbuf")))]
 const SPRITES: SpriteOption = SpriteOption::Storage;
@@ -31,11 +33,12 @@ pub const CELL_HEIGHT: f32 = WINDOW_HEIGHT / NUMBER_OF_CELLS as f32;
 
 async fn run(event_loop: EventLoop<()>, window: Window) {
     // let mut gpu = gpu::GPUState::new(&window);
-    // let mut input = input::Input::default();
+    let mut input = input::Input::default();
     // let mut renderer = sprites::SpriteRenderer::new(&gpu);
     let mut game_over = false; 
     let mut popped = 0.0;
     //let mut you_won = false;
+    let mut falling_sprites: HashSet<usize> = HashSet::new();
     
     let mut gpu = gpu::WGPU::new(&window).await; //added to
     
@@ -314,6 +317,9 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     let mut ball_position: [f32; 2] = [WINDOW_WIDTH / 2.0, WINDOW_HEIGHT / 2.0];
     let mut ball_velocity: [f32; 2] = [3.0, 7.0]; // Adjust these values as needed
 
+    //let mut item_position: [f32; 2] = [WINDOW_WIDTH / 2.0, WINDOW_HEIGHT / 2.0];
+    let mut item_velocity: f32 = 7.0; // Adjust these values as needed
+
     const SPRITE_UNIFORM_SIZE: u64 = 512 * mem::size_of::<GPUSprite>() as u64;
     let buffer_sprite = gpu.device.create_buffer(&wgpu::BufferDescriptor {
         label: None,
@@ -393,6 +399,13 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                  */
 
                 else {
+                    sprites[1].screen_region = [0.0, 0.0, 0.0, 0.0];
+                    //if pressed space, random asset falls down
+                    if input.is_key_pressed(winit::event::VirtualKeyCode::Space) {
+                        let mut rng = rand::thread_rng();                    
+                        let i: usize = rng.gen_range(2..sprites.len());
+                        falling_sprites.insert(i);
+                    }
 
                     // PLATOFORM MOTION
                     platform_position = sprites::move_platform(&input, platform_position);
@@ -400,62 +413,39 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                     sprites[0].screen_region[1] = platform_position[1];
                     // PLATOFORM MOTION END
 
-                    // BALL MOTION
-                    ball_position[0] += ball_velocity[0];
-                    ball_position[1] += ball_velocity[1];
-
-                    // colliding off bricks
-                    for i in (2..sprites.len()).rev() {
-                        let brick_top = sprites[i].screen_region[1];
-                        let brick_bottom = brick_top - CELL_HEIGHT;
-                        let brick_left = sprites[i].screen_region[0];
-                        let brick_right = brick_left + CELL_WIDTH;
-                        if ball_position[1] >= brick_bottom && ball_position[0] > brick_left && ball_position[0] < brick_right{  
-                            //println!("collided {} index with {} bottom {} left", i, brick_bottom, brick_left);
-                            ball_velocity[1] = -ball_velocity[1];
-                            popped += 30.0;
-                            
-                            // stack the bubble
-                            sprites[i].screen_region[0] = WINDOW_WIDTH/2.0;
-                            let j:f32 = i as f32;
-                            sprites[i].screen_region[1] = 100.0 + popped;
-                            //sprites[i].screen_region[1] = 200.0;
-                        }
-                    }
-
-                    // colliding off walss
-                    if ball_position[0] < 0.0 || ball_position[0] > WINDOW_WIDTH {
-                        ball_velocity[0] = -ball_velocity[0];
-                    }
-                    if ball_position[1] > WINDOW_HEIGHT {
-                        ball_velocity[1] = -ball_velocity[1];
-                    }
-                    
-                    
-                    // for bouncing off the bottom, comment out later
-                    /*
-                    if ball_position[1] < 0.0 || ball_position[1] > WINDOW_HEIGHT {
-                        ball_velocity[1] = -ball_velocity[1];
-                    }
-                     */
-        
-                    //need to detect collision
                     let platform_top = platform_position[1];
                     let platform_bottom = platform_top + CELL_HEIGHT;
                     let platform_left = platform_position[0];
                     let platform_right = platform_left + CELL_WIDTH;
-                    if ball_position[1] > platform_top && ball_position[1] < platform_bottom && ball_position[0] > platform_left && ball_position[0] < platform_right{
-                        //println!("{} and {}", platform_left, platform_right);
-                        ball_velocity[1] = -ball_velocity[1];
+
+                    // Update each sprite
+                    for (index, sprite) in sprites.iter_mut().enumerate() {
+                        if falling_sprites.contains(&index) {
+                            // Move sprite down
+                            sprite.screen_region[1] -= 5.0;
+
+                            // Check for collision with the platform
+                            let sprite_bottom = sprite.screen_region[1];
+                            let sprite_left = sprite.screen_region[0];
+                            let sprite_right = sprite_left + CELL_WIDTH; // Assuming ball_size is the width of the sprite
+
+                            if sprite_bottom >= platform_top && sprite_bottom <= platform_bottom && 
+                            sprite_right >= platform_left && sprite_left <= platform_right {
+                                // Stop falling and remove from the falling sprites set
+                                falling_sprites.remove(&index);
+                                println!("hit the platform");
+                                // Stack up
+                                popped += 30.0;
+                                sprite.screen_region[0] = WINDOW_WIDTH/2.0;
+                                sprite.screen_region[1] = 100.0 + popped;
+                            } else if sprite_bottom <= -20.0 {
+                                // Stop falling and remove from the falling sprites set
+                                falling_sprites.remove(&index);
+                                println!("hit the ground");
+                            }
+                        }
                     }
-                    
-                    /* 
-                    if ball_position[1] > platform_top && ball_position[1] < platform_bottom {
-                        ball_velocity[1] = -ball_velocity[1];
-                    }
-                    */
-                     
-                    
+        
                     // game over
                     if ball_position[1] < 0.0 {
                         //println!("Touched ground");
@@ -463,13 +453,14 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                         //game_over = true;
                     }
 
+                    /*
                     // update ball's screen region in sprites vector
                     sprites[1].screen_region[0] = ball_position[0];
                     sprites[1].screen_region[1] = ball_position[1];
                     // BALL MOTION END
 
-                    
-
+                     */
+    
                     /*
                     if sprite_position[1] + CELL_HEIGHT >= WINDOW_HEIGHT {
                         you_won = true;

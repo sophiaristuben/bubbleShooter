@@ -7,6 +7,7 @@ use crate::input::Input;
 pub struct GPUSprite {
     pub screen_region: [f32; 4],
     pub sheet_region: [f32; 4],
+    //pub falling: f32,
 }
 
 #[repr(C)]
@@ -30,10 +31,12 @@ pub fn create_sprites() -> Vec<GPUSprite> {
         GPUSprite { //0 somethin weird is happenign where 1-4 are not showing up
             screen_region: [WINDOW_WIDTH/2.0, -16.0, ball_size, ball_size],
             sheet_region: [0.5, 2.0 / 3.0, 0.5, 0.5], // orange ball (platformer)
+            //falling:0.0,
         },
         GPUSprite { //1
             screen_region: [128.0, 500.0, ball_size, ball_size],
             sheet_region: [0.5, 1.0/3.0, 0.5, 0.35], // yellow ball
+            //falling:0.0,
         },
     ];
 
@@ -54,6 +57,7 @@ pub fn create_sprites() -> Vec<GPUSprite> {
             sprites.push(GPUSprite {
                 screen_region: [x_position, y_position, ball_size, ball_size],
                 sheet_region: color_region,
+                //falling:0.0,
             });
         }
     }
