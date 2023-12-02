@@ -28,12 +28,8 @@ pub const ball_size: f32 =CELL_WIDTH - 20.0 as f32;
 pub fn create_sprites() -> Vec<GPUSprite> {
     let mut sprites: Vec<GPUSprite> = vec![
         GPUSprite { //0 somethin weird is happenign where 1-4 are not showing up 
-            screen_region: [WINDOW_WIDTH/2.0, -16.0, 128.0, 128.0],
-            sheet_region: [0.0,0.0, 0.2, 0.2], // orange ball (platformer)
-        },
-        GPUSprite { //1
-            screen_region: [128.0, 500.0, ball_size, ball_size],
-            sheet_region: [0.0,0.0, 0.2, 0.2], // yellow ball
+            screen_region: [WINDOW_WIDTH/2.0, -16.0, 64.0, 16.0],
+            sheet_region: [0.0, 0.05, 0.2, 0.04], // bottom bun platform that moves
         },
     ];
 
@@ -49,11 +45,20 @@ pub fn create_sprites() -> Vec<GPUSprite> {
             let sauce = [0.0, 0.18, 0.2, 0.05];
             let lettuce = [0.0, 0.23, 0.2, 0.05];
 
-
+            let color_region = match (row % 2, col % 2) {
+                (0, 0) => top_bun,
+                (0, 1) => cheese,
+                (1, 0) => meat,
+                (1, 1) => lettuce,
+                _ => unreachable!(),
+            };
+    
             sprites.push(GPUSprite {
                 screen_region: [x_position, y_position, 64.0, 16.0],
-                sheet_region: [0.0, 0.23, 0.2, 0.05],
+                sheet_region: color_region,
             });
+
+
         }
     }
     

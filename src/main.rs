@@ -375,22 +375,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                     println!("Game Over");
                     *control_flow = ControlFlow::Exit;
                 }
-                /*
-                else if you_won {
-                    // enemy sprites fall!
-                    let mut enemies = sprites.len()-1;
-                    for i in 1..sprites.len(){
-                        sprites[i].screen_region[1] -= 5.0;
-                        if sprites[i].screen_region[1] < 0.0 {
-                            enemies -= 1;
-                        }
-                    }
 
-                    if enemies == 0 {
-                        show_end_screen = true;
-                    }
-                }
-                 */
 
                 else {
 
@@ -399,86 +384,10 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                     sprites[0].screen_region[0] = platform_position[0];
                     sprites[0].screen_region[1] = platform_position[1];
                     // PLATOFORM MOTION END
-
-                    // BALL MOTION
-                    ball_position[0] += ball_velocity[0];
-                    ball_position[1] += ball_velocity[1];
-
-                    // colliding off bricks
-                    for i in (2..sprites.len()).rev() {
-                        let brick_top = sprites[i].screen_region[1];
-                        let brick_bottom = brick_top - CELL_HEIGHT;
-                        let brick_left = sprites[i].screen_region[0];
-                        let brick_right = brick_left + CELL_WIDTH;
-                        if ball_position[1] >= brick_bottom && ball_position[0] > brick_left && ball_position[0] < brick_right{  
-                            //println!("collided {} index with {} bottom {} left", i, brick_bottom, brick_left);
-                            ball_velocity[1] = -ball_velocity[1];
-                            popped += 30.0;
-                            
-                            // stack the bubble
-                            sprites[i].screen_region[0] = WINDOW_WIDTH/2.0;
-                            let j:f32 = i as f32;
-                            sprites[i].screen_region[1] = 100.0 + popped;
-                            //sprites[i].screen_region[1] = 200.0;
-                        }
-                    }
-
-                    // colliding off walss
-                    if ball_position[0] < 0.0 || ball_position[0] > WINDOW_WIDTH {
-                        ball_velocity[0] = -ball_velocity[0];
-                    }
-                    if ball_position[1] > WINDOW_HEIGHT {
-                        ball_velocity[1] = -ball_velocity[1];
-                    }
-                    
-                    
-                    // for bouncing off the bottom, comment out later
-                    /*
-                    if ball_position[1] < 0.0 || ball_position[1] > WINDOW_HEIGHT {
-                        ball_velocity[1] = -ball_velocity[1];
-                    }
-                     */
-        
-                    //need to detect collision
-                    let platform_top = platform_position[1];
-                    let platform_bottom = platform_top + CELL_HEIGHT;
-                    let platform_left = platform_position[0];
-                    let platform_right = platform_left + CELL_WIDTH;
-                    if ball_position[1] > platform_top && ball_position[1] < platform_bottom && ball_position[0] > platform_left && ball_position[0] < platform_right{
-                        //println!("{} and {}", platform_left, platform_right);
-                        ball_velocity[1] = -ball_velocity[1];
-                    }
-                    
-                    /* 
-                    if ball_position[1] > platform_top && ball_position[1] < platform_bottom {
-                        ball_velocity[1] = -ball_velocity[1];
-                    }
-                    */
-                     
-                    
-                    // game over
-                    if ball_position[1] < 0.0 {
-                        //println!("Touched ground");
-                        // commenting out for testing purposes
-                        //game_over = true;
-                    }
-
-                    // update ball's screen region in sprites vector
-                    sprites[1].screen_region[0] = ball_position[0];
-                    sprites[1].screen_region[1] = ball_position[1];
-                    // BALL MOTION END
-
-                    
-
-                    /*
-                    if sprite_position[1] + CELL_HEIGHT >= WINDOW_HEIGHT {
-                        you_won = true;
-                    }
-                     */
                 }
                 
 
-                // Then send the data to the GPU!
+                // Then sendthe data to the GPU!
                 input.next_frame();
 
                 gpu.queue.write_buffer(&buffer_camera, 0, bytemuck::bytes_of(&camera));
