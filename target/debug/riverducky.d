@@ -1,1 +1,0 @@
-/Users/nishiguchimaika/bubbleShooter/target/debug/riverducky: /Users/nishiguchimaika/bubbleShooter/src/gpu.rs /Users/nishiguchimaika/bubbleShooter/src/input.rs /Users/nishiguchimaika/bubbleShooter/src/main.rs /Users/nishiguchimaika/bubbleShooter/src/shader.wgsl /Users/nishiguchimaika/bubbleShooter/src/shader2.wgsl /Users/nishiguchimaika/bubbleShooter/src/sprites.rs

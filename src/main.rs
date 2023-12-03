@@ -179,7 +179,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         push_constant_ranges: &[],
     });
 
-    let _render_pipeline_full = gpu.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+    let render_pipeline_full = gpu.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: None,
         layout: Some(&pipeline_layout_over),
         vertex: wgpu::VertexState {
@@ -285,6 +285,33 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     let (sprite_tex, _sprite_img) = gpu.load_texture(path_sprites, None)
          .await
         .expect("Couldn't load spritesheet texture");
+
+    // background image
+    let path_bgnd = Path::new("content/kitchen.png");
+    let (tex_bgnd, _over_image) = gpu.load_texture(path_bgnd,None)
+        .await
+        .expect("Couldn't load space img");
+
+    let view_bgnd = tex_bgnd.create_view(&wgpu::TextureViewDescriptor::default());
+    let sampler_bgnd = gpu.device.create_sampler(&wgpu::SamplerDescriptor::default());
+
+    let mut texture_bind_group_bgnd = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: None,
+        layout: &texture_bind_group_layout,
+        entries: &[
+            // One for the texture, one for the sampler
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(&view_bgnd),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(&sampler_bgnd),
+            },
+        ],
+    });
+
+
     let view_sprite = sprite_tex.create_view(&wgpu::TextureViewDescriptor::default());
     let sampler_sprite = gpu.device.create_sampler(&wgpu::SamplerDescriptor::default());
     let texture_bind_group = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -316,7 +343,8 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     let mut sprites = sprites::create_sprites();
     let mut platform_position: [f32; 2] = [WINDOW_WIDTH/2.0, 100.0];  
 
-    let mut available_indices: HashSet<usize> = (1..sprites.len()).collect();
+    // start at third sprite
+    let mut available_indices: HashSet<usize> = (3..sprites.len()).collect();
 
     const SPRITE_UNIFORM_SIZE: u64 = 512 * mem::size_of::<GPUSprite>() as u64;
     let buffer_sprite = gpu.device.create_buffer(&wgpu::BufferDescriptor {
@@ -509,6 +537,11 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                         })],
                         depth_stencil_attachment: None,
                     });
+                    // background start
+                    rpass.set_pipeline(&render_pipeline_full);
+                    rpass.set_bind_group(0, &texture_bind_group_bgnd, &[]);
+                    rpass.draw(0..6, 0..1);
+                    // background end
                     rpass.set_pipeline(&render_pipeline);
                     if SPRITES == SpriteOption::VertexBuffer {
                         rpass.set_vertex_buffer(0, buffer_sprite.slice(..));
