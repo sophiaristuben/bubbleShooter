@@ -1,7 +1,6 @@
-use bytemuck::{Pod, Zeroable};
 use std::{borrow::Cow, mem, path::Path};
 use winit::{
-    event::{Event, WindowEvent, KeyboardInput},
+    event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::Window,
 };
@@ -9,8 +8,9 @@ mod input;
 mod gpu;
 mod sprites;
 use sprites::{GPUCamera, SpriteOption, GPUSprite};
-use rand::Rng;
+use rand::seq::IteratorRandom;
 use std::collections::HashSet;
+use std::time::{Duration, Instant};
 
 #[cfg(all(not(feature = "uniforms"), not(feature = "vbuf")))]
 const SPRITES: SpriteOption = SpriteOption::Storage;
@@ -32,17 +32,24 @@ pub const CELL_WIDTH: f32 = WINDOW_WIDTH / NUMBER_OF_CELLS as f32;
 pub const CELL_HEIGHT: f32 = WINDOW_HEIGHT / NUMBER_OF_CELLS as f32;
 
 async fn run(event_loop: EventLoop<()>, window: Window) {
-    // let mut gpu = gpu::GPUState::new(&window);
     let mut input = input::Input::default();
-    // let mut renderer = sprites::SpriteRenderer::new(&gpu);
-    let mut game_over = false; 
+    
     let mut popped = 0.0;
-    //let mut you_won = false;
+    let mut game_over = false; 
+    let mut you_won = false;
+    
     let mut falling_sprites: HashSet<usize> = HashSet::new();
+    let mut stacked_sprites: HashSet<usize> = HashSet::new(); 
+    let mut stacked_order: Vec<&str> = Vec::new();
+
+    let winning_sequence = ["MEAT", "LETTUCE", "CHEESE", "MEAT", "LETTUCE", "TOP_BUN"];
+
+    let mut timer = Duration::new(0, 0);
+    let mut last_update = Instant::now();
     
     let mut gpu = gpu::WGPU::new(&window).await; //added to
     
-    let size = window.inner_size();
+    let _size = window.inner_size();
 
     log::info!("Use sprite mode {:?}", SPRITES);
 
@@ -166,17 +173,13 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         push_constant_ranges: &[],
     });
 
-    // let swapchain_capabilities = surface.get_capabilities(&adapter);
-    // let swapchain_format = swapchain_capabilities.formats[0];
-
-
     let pipeline_layout_over = gpu.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: None,
         bind_group_layouts: &[&texture_bind_group_layout],
         push_constant_ranges: &[],
     });
 
-    let render_pipeline_full = gpu.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+    let _render_pipeline_full = gpu.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: None,
         layout: Some(&pipeline_layout_over),
         vertex: wgpu::VertexState {
@@ -195,7 +198,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         multiview: None,
     });
 
-    let render_pipeline = gpu.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+    let _render_pipeline = gpu.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: None,
         layout: Some(&pipeline_layout),
         vertex: wgpu::VertexState {
@@ -313,12 +316,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     let mut sprites = sprites::create_sprites();
     let mut platform_position: [f32; 2] = [WINDOW_WIDTH/2.0, 100.0];  
 
-    // for the ball motion
-    let mut ball_position: [f32; 2] = [WINDOW_WIDTH / 2.0, WINDOW_HEIGHT / 2.0];
-    let mut ball_velocity: [f32; 2] = [3.0, 7.0]; // Adjust these values as needed
-
-    //let mut item_position: [f32; 2] = [WINDOW_WIDTH / 2.0, WINDOW_HEIGHT / 2.0];
-    let mut item_velocity: f32 = 7.0; // Adjust these values as needed
+    let mut available_indices: HashSet<usize> = (1..sprites.len()).collect();
 
     const SPRITE_UNIFORM_SIZE: u64 = 512 * mem::size_of::<GPUSprite>() as u64;
     let buffer_sprite = gpu.device.create_buffer(&wgpu::BufferDescriptor {
@@ -361,7 +359,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     };
     gpu.queue.write_buffer(&buffer_camera, 0, bytemuck::bytes_of(&camera));
     gpu.queue.write_buffer(&buffer_sprite, 0, bytemuck::cast_slice(&sprites));
-    let mut input = input::Input::default();
+    let mut _input = input::Input::default();
     event_loop.run(move |event, _, control_flow| {
 
         *control_flow = ControlFlow::Wait;
@@ -378,40 +376,55 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
             Event::RedrawRequested(_) => {
 
                 if game_over {
-                    println!("Game Over");
-                    *control_flow = ControlFlow::Exit;
+                    let now = Instant::now();
+                    timer += now.duration_since(last_update);
+                    last_update = now;
+                    if timer.as_secs_f32() >= 1.0 {
+                        println!("You got the order wrong - Game Over!");
+                        *control_flow = ControlFlow::Exit;
+                    }
+                    
+                } else if you_won{
+                    let now = Instant::now();
+                    timer += now.duration_since(last_update);
+                    last_update = now;
+                    if timer.as_secs_f32() >= 1.0 {
+                        println!("You made a perfect hamburger! Congratulations!");
+                        *control_flow = ControlFlow::Exit;
+                    }   
                 }
-                /*
-                else if you_won {
-                    // enemy sprites fall!
-                    let mut enemies = sprites.len()-1;
-                    for i in 1..sprites.len(){
-                        sprites[i].screen_region[1] -= 5.0;
-                        if sprites[i].screen_region[1] < 0.0 {
-                            enemies -= 1;
+                
+                else {
+                    // Update the timer
+                    let now = Instant::now();
+                    timer += now.duration_since(last_update);
+                    last_update = now;
+
+                    // Check if one second has passed
+                    if timer.as_secs_f32() >= 1.0 {
+                        timer = Duration::new(0, 0); // Reset the timer
+
+                        let mut rng = rand::thread_rng();
+                        // Select a random index from the available indices
+                        if let Some(&i) = available_indices.iter().choose(&mut rng) {
+                            falling_sprites.insert(i);
+                            available_indices.remove(&i); // Remove the chosen index from available sprites
                         }
                     }
 
-                    if enemies == 0 {
-                        show_end_screen = true;
-                    }
-                }
-                 */
-
-                else {
-                    sprites[1].screen_region = [0.0, 0.0, 0.0, 0.0];
-                    //if pressed space, random asset falls down
-                    if input.is_key_pressed(winit::event::VirtualKeyCode::Space) {
-                        let mut rng = rand::thread_rng();                    
-                        let i: usize = rng.gen_range(2..sprites.len());
-                        falling_sprites.insert(i);
-                    }
-
                     // PLATOFORM MOTION
+                    let old_platform_position = platform_position;
                     platform_position = sprites::move_platform(&input, platform_position);
+
+                    // Update the position of the platform sprite
                     sprites[0].screen_region[0] = platform_position[0];
                     sprites[0].screen_region[1] = platform_position[1];
-                    // PLATOFORM MOTION END
+
+                    // Update positions of stacked sprites
+                    for &index in &stacked_sprites {
+                        let sprite = &mut sprites[index];
+                        sprite.screen_region[0] += platform_position[0] - old_platform_position[0];
+                    }
 
                     let platform_top = platform_position[1];
                     let platform_bottom = platform_top + CELL_HEIGHT;
@@ -423,53 +436,53 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                         if falling_sprites.contains(&index) {
                             // Move sprite down
                             sprite.screen_region[1] -= 5.0;
-
-                            // Check for collision with the platform
+                            
                             let sprite_bottom = sprite.screen_region[1];
                             let sprite_left = sprite.screen_region[0];
-                            let sprite_right = sprite_left + CELL_WIDTH; // Assuming ball_size is the width of the sprite
+                            let sprite_right = sprite_left + CELL_WIDTH;
 
-                            if sprite_bottom >= platform_top && sprite_bottom <= platform_bottom && 
+                            // Hit the platform
+                            if sprite_bottom >= platform_top + (popped - 25.0) && sprite_bottom <= (popped - 25.0) + platform_bottom && 
                             sprite_right >= platform_left && sprite_left <= platform_right {
+                                if (index <= 17 || (34 < index && index <= 51) || 68 < index) && index % 2 == 1{
+                                    stacked_order.push("TOP_BUN")
+                                } else if (index <= 17 || (34 < index && index <= 51) || 68 < index) && index % 2 == 0{
+                                    stacked_order.push("CHEESE")
+                                } else if index % 2 == 0{
+                                    stacked_order.push("MEAT")
+                                } else {
+                                    stacked_order.push("LETTUCE")
+                                }
+
+                                // Check if the player has won
+                                if stacked_order == winning_sequence {
+                                    you_won = true;
+                                    break; 
+                                }
+                                // Check if the player has lost
+                                if stacked_order.len() > winning_sequence.len() ||
+                                !winning_sequence.starts_with(&stacked_order) {
+                                    game_over = true;
+                                    break; 
+                                }
+
                                 // Stop falling and remove from the falling sprites set
                                 falling_sprites.remove(&index);
-                                println!("hit the platform");
-                                // Stack up
-                                popped += 30.0;
-                                sprite.screen_region[0] = WINDOW_WIDTH/2.0;
+                                stacked_sprites.insert(index); // Add to stacked sprites
+                                // Adjust position relative to the platform
+                                popped += 15.0;
+                                sprite.screen_region[0] = platform_position[0];
                                 sprite.screen_region[1] = 100.0 + popped;
+      
                             } else if sprite_bottom <= -20.0 {
                                 // Stop falling and remove from the falling sprites set
                                 falling_sprites.remove(&index);
-                                println!("hit the ground");
                             }
                         }
                     }
-        
-                    // game over
-                    if ball_position[1] < 0.0 {
-                        //println!("Touched ground");
-                        // commenting out for testing purposes
-                        //game_over = true;
-                    }
-
-                    /*
-                    // update ball's screen region in sprites vector
-                    sprites[1].screen_region[0] = ball_position[0];
-                    sprites[1].screen_region[1] = ball_position[1];
-                    // BALL MOTION END
-
-                     */
-    
-                    /*
-                    if sprite_position[1] + CELL_HEIGHT >= WINDOW_HEIGHT {
-                        you_won = true;
-                    }
-                     */
                 }
-                
 
-                // Then send the data to the GPU!
+                // Then send the data to the GPU
                 input.next_frame();
 
                 gpu.queue.write_buffer(&buffer_camera, 0, bytemuck::bytes_of(&camera));
@@ -502,10 +515,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                     }
                     rpass.set_bind_group(0, &sprite_bind_group, &[]);
                     rpass.set_bind_group(1, &texture_bind_group, &[]);
-                    // draw two triangles per sprite, and sprites-many sprites.
-                    // this uses instanced drawing, but it would also be okay
-                    // to draw 6 * sprites.len() vertices and use modular arithmetic
-                    // to figure out which sprite we're drawing.
                     rpass.draw(0..6, 0..(sprites.len() as u32));
                 }
                 gpu.queue.submit(Some(encoder.finish()));
@@ -516,7 +525,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                 event: WindowEvent::CloseRequested,
                 ..
             } => *control_flow = ControlFlow::Exit,
-            // WindowEvent->KeyboardInput: Keyboard input!
             Event::WindowEvent {
                 // Note this deeply nested pattern match
                 event: WindowEvent::KeyboardInput { input: key_ev, .. },
@@ -565,65 +573,4 @@ fn main() {
             .expect("couldn't append canvas to document body");
         wasm_bindgen_futures::spawn_local(run(event_loop, window));
     }
-}
-async fn load_texture(
-    path: impl AsRef<std::path::Path>,
-    label: Option<&str>,
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-) -> Result<(wgpu::Texture, image::RgbaImage), Box<dyn std::error::Error>> {
-    #[cfg(target_arch = "wasm32")]
-    let img = {
-        let fetch = web_sys::window()
-            .map(|win| win.fetch_with_str(path.as_ref().to_str().unwrap()))
-            .unwrap();
-        let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(fetch)
-            .await
-            .unwrap()
-            .into();
-        log::debug!("{:?} {:?}", &resp, resp.status());
-        let buf: js_sys::ArrayBuffer =
-            wasm_bindgen_futures::JsFuture::from(resp.array_buffer().unwrap())
-                .await
-                .unwrap()
-                .into();
-        log::debug!("{:?} {:?}", &buf, buf.byte_length());
-        let u8arr = js_sys::Uint8Array::new(&buf);
-        log::debug!("{:?}, {:?}", &u8arr, u8arr.length());
-        let mut bytes = vec![0; u8arr.length() as usize];
-        log::debug!("{:?}", &bytes);
-        u8arr.copy_to(&mut bytes);
-        image::load_from_memory_with_format(&bytes, image::ImageFormat::Png)
-            .map_err(|e| e.to_string())?
-            .to_rgba8()
-    };
-    #[cfg(not(target_arch = "wasm32"))]
-    let img = image::open(path.as_ref())?.to_rgba8();
-    let (width, height) = img.dimensions();
-    let size = wgpu::Extent3d {
-        width,
-        height,
-        depth_or_array_layers: 1,
-    };
-    let texture = device.create_texture(&wgpu::TextureDescriptor {
-        label,
-        size,
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: wgpu::TextureDimension::D2,
-        format: wgpu::TextureFormat::Rgba8UnormSrgb,
-        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-        view_formats: &[],
-    });
-    queue.write_texture(
-        texture.as_image_copy(),
-        &img,
-        wgpu::ImageDataLayout {
-            offset: 0,
-            bytes_per_row: Some(4 * width),
-            rows_per_image: Some(height),
-        },
-        size,
-    );
-    Ok((texture, img))
 }
