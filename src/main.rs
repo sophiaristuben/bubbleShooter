@@ -344,7 +344,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     let mut platform_position: [f32; 2] = [WINDOW_WIDTH/2.0, 100.0];  
 
     // start at third sprite
-    let mut available_indices: HashSet<usize> = (3..sprites.len()).collect();
+    let mut available_indices: HashSet<usize> = (2..sprites.len()).collect();
 
     const SPRITE_UNIFORM_SIZE: u64 = 512 * mem::size_of::<GPUSprite>() as u64;
     let buffer_sprite = gpu.device.create_buffer(&wgpu::BufferDescriptor {
@@ -472,15 +472,16 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                             // Hit the platform
                             if sprite_bottom >= platform_top + (popped - 25.0) && sprite_bottom <= (popped - 25.0) + platform_bottom && 
                             sprite_right >= platform_left && sprite_left <= platform_right {
-                                if (index <= 17 || (34 < index && index <= 51) || 68 < index) && index % 2 == 1{
+                                if (index <= 18 || (35 < index && index <= 52) || 69 < index) && index % 2 == 0{
                                     stacked_order.push("TOP_BUN")
-                                } else if (index <= 17 || (34 < index && index <= 51) || 68 < index) && index % 2 == 0{
+                                } else if (index <= 18 || (35 < index && index <= 52) || 69 < index) && index % 2 == 1{
                                     stacked_order.push("CHEESE")
-                                } else if index % 2 == 0{
+                                } else if index % 2 == 1{
                                     stacked_order.push("MEAT")
                                 } else {
                                     stacked_order.push("LETTUCE")
                                 }
+                             
 
                                 // Check if the player has won
                                 if stacked_order == winning_sequence {
