@@ -37,9 +37,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     let mut popped = 0.0;
     let mut game_over = false; 
     let mut you_won = false;
-    let mut show_end_screen = false;
     let mut show_instructions = true;
-    let mut show_win_screen = false;
     let mut r_key_pressed = false;
 
     
@@ -434,7 +432,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                         popped = 0.0;
                         game_over = false;
                         you_won = false;
-                        show_end_screen = false;
                         show_instructions = false;
                         falling_sprites.clear();
                         stacked_sprites.clear();
@@ -449,27 +446,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                         r_key_pressed = false;
                     } 
                 }  
-                // else if you_won{
-                //     if input.is_key_pressed(winit::event::VirtualKeyCode::R) && !r_key_pressed {
-                //         r_key_pressed = true;
-                //         popped = 0.0;
-                //         game_over = false;
-                //         you_won = false;
-                //         show_end_screen = false;
-                //         show_instructions = false;
-                //         falling_sprites.clear();
-                //         stacked_sprites.clear();
-                //         stacked_order.clear();
-                //         sprites.clear();
-                //         sprites.extend(sprites::create_sprites());
-                //         available_indices = (2..sprites.len()).collect();
-                //         timer = Duration::new(0, 0);
-                //         last_update = Instant::now();
-                    // } 
-                //     else if !input.is_key_pressed(winit::event::VirtualKeyCode::R) {
-                //         r_key_pressed = false;
-                //     } 
-                // }
                 else {
                     if input.is_key_pressed(winit::event::VirtualKeyCode::Space) {
                         show_instructions = false;

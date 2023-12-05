@@ -1,7 +1,6 @@
-use std::io::Read;
 
 use bytemuck::{Pod, Zeroable};
-use crate::{WINDOW_WIDTH, WINDOW_HEIGHT, NUMBER_OF_CELLS, CELL_WIDTH, CELL_HEIGHT};
+use crate::{WINDOW_WIDTH, WINDOW_HEIGHT, NUMBER_OF_CELLS, CELL_WIDTH};
 use crate::input::Input;
 
 #[repr(C)]
