@@ -37,6 +37,11 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     let mut popped = 0.0;
     let mut game_over = false; 
     let mut you_won = false;
+    let mut show_end_screen = false;
+    let mut show_instructions = true;
+    let mut show_win_screen = false;
+    let mut r_key_pressed = false;
+
     
     let mut falling_sprites: HashSet<usize> = HashSet::new();
     let mut stacked_sprites: HashSet<usize> = HashSet::new(); 
@@ -295,6 +300,27 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     let view_bgnd = tex_bgnd.create_view(&wgpu::TextureViewDescriptor::default());
     let sampler_bgnd = gpu.device.create_sampler(&wgpu::SamplerDescriptor::default());
 
+    //winning screen
+    let path_win = Path::new("content/youWin.png");
+    let (tex_win, _win_image) = gpu.load_texture(path_win,None)
+            .await
+            .expect("Couldn't load game over img");
+        
+    // game over screen
+    let path_over = Path::new("content/youLose.png");
+    let (tex_over, _over_image) = gpu.load_texture(path_over,None)
+        .await
+        .expect("Couldn't load game over img");
+
+    // instructions screen
+    let path_instruct = Path::new("content/instructions.png");
+    let (tex_instruct, _instruct_image) = gpu.load_texture(path_instruct,None)
+        .await
+        .expect("Couldn't load game over img");
+
+    let view_instruct = tex_instruct.create_view(&wgpu::TextureViewDescriptor::default());
+    let sampler_instruct = gpu.device.create_sampler(&wgpu::SamplerDescriptor::default());    
+
     let mut texture_bind_group_bgnd = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: None,
         layout: &texture_bind_group_layout,
@@ -302,11 +328,11 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
             // One for the texture, one for the sampler
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: wgpu::BindingResource::TextureView(&view_bgnd),
+                resource: wgpu::BindingResource::TextureView(&view_instruct),
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: wgpu::BindingResource::Sampler(&sampler_bgnd),
+                resource: wgpu::BindingResource::Sampler(&sampler_instruct),
             },
         ],
     });
@@ -402,27 +428,52 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                 window.request_redraw();
             }
             Event::RedrawRequested(_) => {
-
-                if game_over {
-                    let now = Instant::now();
-                    timer += now.duration_since(last_update);
-                    last_update = now;
-                    if timer.as_secs_f32() >= 1.0 {
-                        println!("You got the order wrong - Game Over!");
-                        *control_flow = ControlFlow::Exit;
-                    }
-                    
-                } else if you_won{
-                    let now = Instant::now();
-                    timer += now.duration_since(last_update);
-                    last_update = now;
-                    if timer.as_secs_f32() >= 1.0 {
-                        println!("You made a perfect hamburger! Congratulations!");
-                        *control_flow = ControlFlow::Exit;
-                    }   
-                }
-                
+                if game_over{
+                    if input.is_key_pressed(winit::event::VirtualKeyCode::R) && !r_key_pressed {
+                        r_key_pressed = true;
+                        popped = 0.0;
+                        game_over = false;
+                        you_won = false;
+                        show_end_screen = false;
+                        show_instructions = false;
+                        falling_sprites.clear();
+                        stacked_sprites.clear();
+                        stacked_order.clear();
+                        sprites.clear();
+                        sprites.extend(sprites::create_sprites());
+                        available_indices = (2..sprites.len()).collect();
+                        timer = Duration::new(0, 0);
+                        last_update = Instant::now();
+                    } 
+                    else if !input.is_key_pressed(winit::event::VirtualKeyCode::R) {
+                        r_key_pressed = false;
+                    } 
+                }  
+                // else if you_won{
+                //     if input.is_key_pressed(winit::event::VirtualKeyCode::R) && !r_key_pressed {
+                //         r_key_pressed = true;
+                //         popped = 0.0;
+                //         game_over = false;
+                //         you_won = false;
+                //         show_end_screen = false;
+                //         show_instructions = false;
+                //         falling_sprites.clear();
+                //         stacked_sprites.clear();
+                //         stacked_order.clear();
+                //         sprites.clear();
+                //         sprites.extend(sprites::create_sprites());
+                //         available_indices = (2..sprites.len()).collect();
+                //         timer = Duration::new(0, 0);
+                //         last_update = Instant::now();
+                    // } 
+                //     else if !input.is_key_pressed(winit::event::VirtualKeyCode::R) {
+                //         r_key_pressed = false;
+                //     } 
+                // }
                 else {
+                    if input.is_key_pressed(winit::event::VirtualKeyCode::Space) {
+                        show_instructions = false;
+                    }
                     // Update the timer
                     let now = Instant::now();
                     timer += now.duration_since(last_update);
@@ -525,31 +576,89 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                     .create_view(&wgpu::TextureViewDescriptor::default());
                 let mut encoder =
                     gpu.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-                {
+                    {
                     let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                         label: None,
                         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                             view: &view,
                             resolve_target: None,
                             ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                                load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
                                 store: true,
                             },
                         })],
                         depth_stencil_attachment: None,
                     });
-                    // background start
-                    rpass.set_pipeline(&render_pipeline_full);
-                    rpass.set_bind_group(0, &texture_bind_group_bgnd, &[]);
-                    rpass.draw(0..6, 0..1);
-                    // background end
-                    rpass.set_pipeline(&render_pipeline);
-                    if SPRITES == SpriteOption::VertexBuffer {
-                        rpass.set_vertex_buffer(0, buffer_sprite.slice(..));
+                    if show_instructions {
+                        // draw instructions
+                        rpass.set_pipeline(&render_pipeline_full);
+                        rpass.set_bind_group(0, &texture_bind_group_bgnd, &[]);
+                        rpass.draw(0..6, 0..1);
                     }
-                    rpass.set_bind_group(0, &sprite_bind_group, &[]);
-                    rpass.set_bind_group(1, &texture_bind_group, &[]);
-                    rpass.draw(0..6, 0..(sprites.len() as u32));
+                    else if game_over{
+                        let tex_end = 
+                        if you_won {
+                            &tex_win
+                        } else {
+                            &tex_over
+                        };
+                        let view_end = tex_end.create_view(&wgpu::TextureViewDescriptor::default());
+                        let sampler_end = gpu.device.create_sampler(&wgpu::SamplerDescriptor::default());
+                            
+                        texture_bind_group_bgnd = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                            label: None,
+                            layout: &texture_bind_group_layout,
+                            entries: &[
+                                // One for the texture, one for the sampler
+                                wgpu::BindGroupEntry {
+                                    binding: 0,
+                                    resource: wgpu::BindingResource::TextureView(&view_end),
+                                },
+                                wgpu::BindGroupEntry {
+                                    binding: 1,
+                                    resource: wgpu::BindingResource::Sampler(&sampler_end),
+                                },
+                            ],
+                        });
+
+                        // Draw end game screen
+                        rpass.set_pipeline(&render_pipeline_full);
+                        rpass.set_bind_group(0, &texture_bind_group_bgnd, &[]);
+                        rpass.draw(0..6, 0..1);
+                    } else {
+                        texture_bind_group_bgnd = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                            label: None,
+                            layout: &texture_bind_group_layout,
+                            entries: &[
+                                // One for the texture, one for the sampler
+                                wgpu::BindGroupEntry {
+                                    binding: 0,
+                                    resource: wgpu::BindingResource::TextureView(&view_bgnd),
+                                },
+                                wgpu::BindGroupEntry {
+                                    binding: 1,
+                                    resource: wgpu::BindingResource::Sampler(&sampler_bgnd),
+                                },
+                            ],
+                        });
+                        // Draw space background
+                        rpass.set_pipeline(&render_pipeline_full);
+                        rpass.set_bind_group(0, &texture_bind_group_bgnd, &[]);
+                        rpass.draw(0..6, 0..1);
+                        {
+                            rpass.set_pipeline(&render_pipeline);
+                            if SPRITES == SpriteOption::VertexBuffer {
+                                rpass.set_vertex_buffer(0, buffer_sprite.slice(..));
+                            }
+                            rpass.set_bind_group(0, &sprite_bind_group, &[]);
+                            rpass.set_bind_group(1, &texture_bind_group, &[]);
+                            // draw two triangles per sprite, and sprites-many sprites.
+                            // this uses instanced drawing, but it would also be okay
+                            // to draw 6 * sprites.len() vertices and use modular arithmetic
+                            // to figure out which sprite we're drawing.
+                            rpass.draw(0..6, 0..(sprites.len() as u32));
+                        }
+                    }
                 }
                 gpu.queue.submit(Some(encoder.finish()));
                 frame.present();
