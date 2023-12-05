@@ -1,3 +1,5 @@
+use std::io::Read;
+
 use bytemuck::{Pod, Zeroable};
 use crate::{WINDOW_WIDTH, WINDOW_HEIGHT, NUMBER_OF_CELLS, CELL_WIDTH, CELL_HEIGHT};
 use crate::input::Input;
@@ -22,73 +24,52 @@ pub enum SpriteOption {
     Uniform,
     VertexBuffer,
 }
+// Define sprite types as constant arrays
+pub const TOP_BUN: [f32; 4] = [0.0, 0.0, 0.2, 0.05];
+pub const CHEESE: [f32; 4] = [0.0, 0.105, 0.2, 0.04];
+pub const MEAT: [f32; 4] = [0.0, 0.145, 0.21, 0.04];
+pub const LETTUCE: [f32; 4] = [0.0, 0.24, 0.2, 0.05];
 
-pub const ball_size: f32 =CELL_WIDTH - 20.0 as f32;
+//pub const ball_size: f32 =CELL_WIDTH - 20.0 as f32;
 
 pub fn create_sprites() -> Vec<GPUSprite> {
     let mut sprites: Vec<GPUSprite> = vec![
-        GPUSprite { //0 somethin weird is happenign where 1-4 are not showing up
-            screen_region: [WINDOW_WIDTH/2.0, -16.0, CELL_WIDTH*2.0, CELL_HEIGHT],
-            sheet_region: [0.5, 1.0 / 3.0, 0.5, 0.5 / 3.0], // purple PLATFORM SPRITE
+        GPUSprite { //0 somethin weird is happenign where 1-4 are not showing up 
+            screen_region: [WINDOW_WIDTH/2.0, -16.0, 64.0, 16.0],
+            sheet_region: [0.0, 0.057, 0.2, 0.04], // bottom bun platform that moves
         },
-        GPUSprite { //1
-            screen_region: [128.0, 500.0, 64.0, 96.0],
-            sheet_region: [0.5, 0.5, 0.5, 0.5], // ball - for physics
+
+        GPUSprite { // target image
+            screen_region: [0.0,WINDOW_HEIGHT-248.0, 152.0, 248.0],
+            sheet_region: [0.0, 0.3, 0.19, 0.5], // bottom bun platform that moves
         },
     ];
 
     for row in 0..5 {
         for col in 0..(NUMBER_OF_CELLS+1) as usize {
             let x_position = col as f32 * CELL_WIDTH;
-            let y_position = WINDOW_HEIGHT - (row as f32 * CELL_HEIGHT);
-    
-            // Use modulo to cycle through all four colors
+            // let y_position = WINDOW_HEIGHT - (row as f32 * CELL_HEIGHT);   
+            let y_position = WINDOW_HEIGHT+70.0;        
+
             let color_region = match (row % 2, col % 2) {
-                (0, 0) => [0.0, 1.0 / 3.0, 0.5, 0.5 / 3.0], // Blue brick
-                (0, 1) => [0.0, 0.0, 0.5, 0.5 / 3.0], // Pink brick
-                (1, 0) => [0.5, 0.0, 0.5, 0.5/3.0], // Green brick
-                (1, 1) => [0.0, 2.0 / 3.0, 0.5, 0.5 / 3.0], // Yellow brick
+                (0, 0) => TOP_BUN,
+                (0, 1) => CHEESE,
+                (1, 0) => MEAT,
+                (1, 1) => LETTUCE,
                 _ => unreachable!(),
             };
     
             sprites.push(GPUSprite {
-                screen_region: [x_position, y_position, CELL_WIDTH, CELL_HEIGHT],
+                screen_region: [x_position, y_position, 64.0, 16.0],
                 sheet_region: color_region,
             });
+
+
         }
     }
-    
-    
-    
-
-    // for row in 0..5 {
-    //     for col in 0..(WINDOW_WIDTH / CELL_WIDTH) as usize {
-    //         let x_position = col as f32 * CELL_WIDTH;
-    //         let y_position = WINDOW_HEIGHT - (row as f32 * CELL_HEIGHT);
-
-    //         sprites.push(GPUSprite {
-    //             screen_region: [x_position, y_position, CELL_WIDTH, CELL_HEIGHT],
-    //             sheet_region: [0.0, 1.0 / 3.0, 0.5, 0.5 / 3.0], // blue brick
-    //         });
-    //         sprites.push(GPUSprite {
-    //             screen_region: [x_position, y_position, CELL_WIDTH, CELL_HEIGHT],
-    //             sheet_region: [0.0, 0.0, 0.5, 0.5 / 3.0], // pink brick
-    //         });
-    //         sprites.push(GPUSprite {
-    //             screen_region: [x_position, y_position, CELL_WIDTH, CELL_HEIGHT],
-    //             sheet_region: [0.5, 1.0 / 3.0, 0.5, 0.5 / 3.0], // purple brick
-    //         });
-    //         sprites.push(GPUSprite {
-    //             screen_region: [x_position, y_position, CELL_WIDTH, CELL_HEIGHT],
-    //             sheet_region: [0.0, 2.0 / 3.0, 0.5, 0.5 / 3.0], // yellow brick
-    //         });
-    //     }
-    // };
 
     sprites
 }
-
-
 
 
 pub fn move_platform(input: &Input, mut platform_position: [f32; 2]) -> [f32; 2] {
